@@ -15,12 +15,54 @@ Every 15 minutes, Relay fetches posts from your configured sources, runs them th
 
 Over time, the system learns your taste via a feedback loop — you rate posts on the web dashboard, and those ratings are stored and used as RAG context for future classifications.
 
+## Architecture
+
+```mermaid
+flowchart TD
+    SCHED[⏱️ APScheduler\nevery 15 min]
+
+    SCHED --> RF[Reddit Fetcher\nPRAW]
+    SCHED --> HN[HN Fetcher\nFirebase API]
+    SCHED --> RSS[RSS Fetcher\nfeedparser]
+
+    RF & HN & RSS --> DEDUP{Dedup Check\nSQLite}
+
+    DEDUP -->|already seen| ARCH1[archived]
+    DEDUP -->|new post| LLM
+
+    LLM["🧠 LLM Classifier\nOllama — local\n─────────────────\npreferences.md\n+ post content\n+ recent ratings"]
+
+    LLM --> VI[very_interesting]
+    LLM --> INT[interesting]
+    LLM --> GOOD[good]
+    LLM --> SKIP[skip]
+
+    VI --> PUSH[📱 Ntfy.sh\nPush Notification]
+    INT --> DQ[(Digest Queue\nSQLite)]
+    GOOD --> DQ
+    SKIP --> ARCH2[archived]
+
+    DQ -->|daily 08:00| EMAIL[📧 Email Digest\nSMTP / Gmail]
+
+    DQ --> DASH[🖥️ Web Dashboard\nFastAPI + Jinja2]
+    DASH -->|rate posts| RATINGS[(Ratings\nSQLite)]
+    RATINGS -->|injected as\nfew-shot examples| LLM
+
+    style LLM fill:#4f46e5,color:#fff
+    style PUSH fill:#16a34a,color:#fff
+    style EMAIL fill:#0369a1,color:#fff
+    style DASH fill:#b45309,color:#fff
+    style VI fill:#dc2626,color:#fff
+    style INT fill:#ea580c,color:#fff
+    style GOOD fill:#65a30d,color:#fff
+```
+
 ## Stack
 
 - **LLM**: Ollama (local) — `llama3.1:8b` now, `llama3.3:70b` on 48GB+ hardware
 - **Sources**: Reddit (PRAW), Hacker News (Firebase API), RSS (feedparser)
 - **Storage**: SQLite + SQLAlchemy
-- **Recommendation**: ChromaDB + nomic-embed-text embeddings (RAG)
+- **Recommendation**: Feedback loop — user ratings injected as few-shot examples into future prompts
 - **Push**: Ntfy.sh
 - **Email**: SMTP (Gmail)
 - **Dashboard**: FastAPI + Jinja2
