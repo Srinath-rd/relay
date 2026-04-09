@@ -1,0 +1,49 @@
+llm:
+  model: llama3.1:8b        # swap to llama3.3:70b on 48GB+ hardware
+  base_url: http://localhost:11434
+  timeout: 60               # seconds per classification call
+
+sources:
+  reddit:
+    enabled: true
+    subreddits:
+      - MachineLearning
+      - LocalLLaMA
+      - investing
+      - wallstreetbets
+      - aws
+      - devops
+    limit: 50               # posts to fetch per subreddit per poll
+    sort: hot               # hot | new | top
+  hackernews:
+    enabled: true
+    limit: 30               # top N stories to fetch per poll
+  rss:
+    enabled: true
+    feeds:
+      # Add RSS feed URLs here
+      # - https://openai.com/blog/rss.xml
+      # - https://aws.amazon.com/blogs/aws/feed/
+
+scheduler:
+  poll_interval_minutes: 15
+  digest_time: "08:00"      # daily digest send time (24h, local time)
+
+notify:
+  push:
+    provider: ntfy
+    server: https://ntfy.sh
+    topic: ""               # set your ntfy topic here or in .env
+  email:
+    smtp_host: smtp.gmail.com
+    smtp_port: 587
+    from_address: ""        # set in .env
+    to_address: ""          # set in .env
+
+database:
+  path: relay.db            # SQLite file path (relative to project root)
+
+# How many past confirmed ratings to inject into classification prompt
+# Increases with your ratings history — start at 5, raise to 20 over time
+recommendation:
+  ratings_context_limit: 5
